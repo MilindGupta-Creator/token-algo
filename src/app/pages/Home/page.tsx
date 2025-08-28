@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, RefreshCw, Plus, Star } from "lucide-react"
@@ -87,16 +88,35 @@ function Sparkline({ trend }: { trend: string }) {
   const isUp = trend === "up"
   const color = isUp ? "#32ca5b" : "#fb7185"
 
+  const width = 64
+  const height = 32
+  const padding = 2
+  const numPoints = 28
+
+  // Generate lightweight pseudo-random sparkline data that trends up or down
+  const points: Array<[number, number]> = []
+  const start = isUp ? height - 8 : 8
+  const end = isUp ? 8 : height - 8
+  for (let i = 0; i < numPoints; i++) {
+    const t = i / (numPoints - 1)
+    const base = start + (end - start) * t
+    const noise = Math.sin(i * 0.9) * 2 + (Math.random() - 0.5) * 2
+    const y = Math.max(padding, Math.min(height - padding, base + noise))
+    const x = padding + (width - padding * 2) * t
+    points.push([x, y])
+  }
+
+  const linePath = points
+    .map((p, idx) => `${idx === 0 ? "M" : "L"}${p[0].toFixed(2)},${p[1].toFixed(2)}`)
+    .join(" ")
+
+  const areaPath = `${linePath} L${points[points.length - 1][0].toFixed(2)},${height - padding} L${points[0][0].toFixed(2)},${height - padding} Z`
+
   return (
     <div className="w-16 h-8 flex items-center">
-      <svg width="64" height="32" viewBox="0 0 64 32">
-        <path
-          d={isUp ? "M2,28 Q16,20 32,16 Q48,12 62,4" : "M2,4 Q16,12 32,16 Q48,20 62,28"}
-          stroke={color}
-          strokeWidth="2"
-          fill="none"
-          className="opacity-80"
-        />
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        <path d={areaPath} fill={isUp ? "#32ca5b22" : "#fb718522"} />
+        <path d={linePath} stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" />
       </svg>
     </div>
   )
@@ -143,7 +163,24 @@ function DonutChart() {
   )
 }
 
-export default function TokenPortfolio() {
+export default function HomePage() {
+  const [data, setData] = useState(portfolioData)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [editValue, setEditValue] = useState<string>("")
+
+  const startEdit = (index: number) => {
+    setEditingIndex(index)
+    setEditValue(String(data[index].holdings))
+  }
+
+  const saveEdit = (index: number) => {
+    const next = [...data]
+    const numeric = Number(editValue)
+    next[index] = { ...next[index], holdings: isNaN(numeric) ? editValue : numeric.toFixed(4) }
+    setData(next)
+    setEditingIndex(null)
+  }
+
   return (
     <div className="min-h-screen bg-[#212124] text-white">
       {/* Header */}
@@ -193,13 +230,13 @@ export default function TokenPortfolio() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
                 <Star className="w-5 h-5 text-[#a9e851]" fill="currentColor" />
-                <h2 className="text-xl font-semibold">Watchlist</h2>
+                <h2 className="text-xl text-white font-semibold">Watchlist</h2>
               </div>
               <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-[#27272a] text-[#a1a1aa] hover:bg-[#27272a] bg-transparent"
+                  className="border-[#27272a] text-[#a1a1aa] bg-transparent"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Refresh Prices
@@ -212,7 +249,7 @@ export default function TokenPortfolio() {
             </div>
 
             {/* Table Header */}
-            <div className="grid grid-cols-7 gap-4 pb-3 border-b border-[#27272a] text-[#71717a] text-sm">
+            <div className="grid grid-cols-7 gap-8 pb-3 border-b border-[#27272a] text-[#71717a] text-sm">
               <div>Token</div>
               <div>Price</div>
               <div>24h %</div>
@@ -224,21 +261,21 @@ export default function TokenPortfolio() {
 
             {/* Table Rows */}
             <div className="space-y-0">
-              {portfolioData.map((token, index) => (
+              {data.map((token, index) => (
                 <div
                   key={index}
-                  className="grid grid-cols-7 gap-4 py-4 border-b border-[#27272a]/50 hover:bg-[#27272a]/30 transition-colors"
+                  className="grid grid-cols-7 gap-12 py-4 border-b border-[#27272a]/50 hover:bg-[#27272a]/30 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm">
                       {token.icon}
                     </div>
-                    <div>
-                      <div className="font-medium">{token.name}</div>
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="font-medium text-white">{token.name}</div>
                       <div className="text-[#71717a] text-sm">({token.symbol})</div>
                     </div>
                   </div>
-                  <div className="flex items-center font-medium">{token.price}</div>
+                  <div className="flex items-center font-medium text-white">{token.price}</div>
                   <div className="flex items-center">
                     <Badge
                       variant="secondary"
@@ -254,8 +291,33 @@ export default function TokenPortfolio() {
                   <div className="flex items-center">
                     <Sparkline trend={token.sparkline} />
                   </div>
-                  <div className="flex items-center font-medium">{token.holdings}</div>
-                  <div className="flex items-center font-medium">{token.value}</div>
+                  {editingIndex === index ? (
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        className="w-28 bg-transparent border border-[#3a3a3f] focus:ring-2 focus:ring-[#a9e851] focus:border-[#a9e851] rounded-md px-3 py-1 text-white placeholder:text-[#71717a]"
+                        placeholder="Select"
+                        step="0.0001"
+                      />
+                      <Button
+                        size="sm"
+                        className="bg-[#a9e851] text-[#212124] hover:bg-[#a9e851]/90"
+                        onClick={() => saveEdit(index)}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex items-center font-medium text-white cursor-pointer"
+                      onClick={() => startEdit(index)}
+                    >
+                      {token.holdings}
+                    </div>
+                  )}
+                  <div className="flex items-center font-medium text-white ml-4">{token.value}</div>
                   <div className="flex items-center justify-end">
                     <Button variant="ghost" size="sm" className="text-[#71717a] hover:text-white">
                       <MoreHorizontal className="w-4 h-4" />
