@@ -6,6 +6,18 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, RefreshCw, Plus, Star, Pencil, Trash, ChevronLeft, ChevronRight } from "lucide-react"
 
+interface Token {
+  name: string
+  symbol: string
+  price: string
+  change: string
+  changePositive: boolean
+  holdings: string
+  value: string
+  sparkline: string
+  icon: string
+}
+
 const portfolioData = [
   {
     name: "Bitcoin",
@@ -159,7 +171,6 @@ function Sparkline({ trend }: { trend: string }) {
 }
 
 function DonutChart({ data }: { data: typeof portfolioData }) {
-  const total = chartData.reduce((sum, item) => sum + item.percentage, 0)
   let cumulativePercentage = 0
 
   const radius = 80
@@ -204,7 +215,7 @@ function DonutChart({ data }: { data: typeof portfolioData }) {
       </svg>
       {/* Center content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-2xl font-bold text-white">${data.reduce((sum: number, token: any) => sum + parseFloat(token.value.replace('$', '').replace(',', '')), 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+        <div className="text-2xl font-bold text-white">${data.reduce((sum: number, token: Token) => sum + parseFloat(token.value.replace('$', '').replace(',', '')), 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
         <div className="text-xs text-[#71717a]">Total Value</div>
       </div>
     </div>
@@ -212,7 +223,7 @@ function DonutChart({ data }: { data: typeof portfolioData }) {
 }
 
 export default function HomePage() {
-  const [data, setData] = useState(portfolioData)
+  const [data, setData] = useState<Token[]>(portfolioData)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editValue, setEditValue] = useState<string>("")
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null)
