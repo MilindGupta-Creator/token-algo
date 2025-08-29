@@ -331,7 +331,7 @@ export default function HomePage() {
           {/* Portfolio Chart */}
           <div>
             <h2 className="text-[#a1a1aa] text-sm mb-4">Portfolio Distribution</h2>
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-8 sm:flex-col lg:flex-row">
               <DonutChart data={data} />
               <div className="space-y-3">
                 {chartData.slice(0, 5).map((item, index) => (
@@ -365,7 +365,7 @@ export default function HomePage() {
                   disabled={isRefreshing}
                 >
                   <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  {isRefreshing ? 'Refreshing...' : 'Refresh Prices'}
+                  <span className="hidden md:inline">{isRefreshing ? 'Refreshing...' : 'Refresh Prices'}</span>
                 </Button>
                 <Button size="sm" className="bg-[#a9e851] text-[#212124] hover:bg-[#a9e851]/90" onClick={() => setIsAddOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
@@ -375,13 +375,13 @@ export default function HomePage() {
             </div>
 
             {/* Table Header */}
-            <div className="grid grid-cols-7 gap-8 pb-3 border-b border-[#27272a] text-[#71717a] text-sm">
+            <div className="grid grid-cols-3 md:grid-cols-7 gap-16 md:gap-8 pb-3 border-b border-[#27272a] text-[#71717a] text-sm">
               <div>Token</div>
               <div>Price</div>
-              <div>24h %</div>
-              <div>Sparkline (7d)</div>
-              <div>Holdings</div>
-              <div>Value</div>
+              <div className="hidden md:block">24h %</div>
+              <div className="hidden md:block">Sparkline (7d)</div>
+              <div className="hidden md:block">Holdings</div>
+              <div className="hidden md:block">Value</div>
               <div></div>
             </div>
 
@@ -392,7 +392,7 @@ export default function HomePage() {
                 return (
                   <div
                     key={actualIndex}
-                    className="grid grid-cols-7 gap-12 py-4 border-b border-[#27272a]/50 hover:bg-[#27272a]/30 transition-colors"
+                    className="grid grid-cols-3 md:grid-cols-7 gap-16 md:gap-12 py-4 border-b border-[#27272a]/50 hover:bg-[#27272a]/30 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm">
@@ -404,7 +404,7 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className="flex items-center font-medium text-white">{token.price}</div>
-                    <div className="flex items-center">
+                    <div className="hidden md:flex items-center">
                       <Badge
                         variant="secondary"
                         className={`${
@@ -416,36 +416,38 @@ export default function HomePage() {
                         {token.change}
                       </Badge>
                     </div>
-                    <div className="flex items-center">
+                    <div className="hidden md:flex items-center">
                       <Sparkline trend={token.sparkline} />
                     </div>
-                    {editingIndex === actualIndex ? (
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          className="w-28 bg-transparent border border-[#3a3a3f] focus:ring-2 focus:ring-[#a9e851] focus:border-[#a9e851] rounded-md px-3 py-1 text-white placeholder:text-[#71717a]"
-                          placeholder="Select"
-                          step="0.0001"
-                        />
-                        <Button
-                          size="sm"
-                          className="bg-[#a9e851] text-[#212124] hover:bg-[#a9e851]/90"
-                          onClick={() => saveEdit(actualIndex)}
+                    <div className="hidden md:block">
+                      {editingIndex === actualIndex ? (
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-28 bg-transparent border border-[#3a3a3f] focus:ring-2 focus:ring-[#a9e851] focus:border-[#a9e851] rounded-md px-3 py-1 text-white placeholder:text-[#71717a]"
+                            placeholder="Select"
+                            step="0.0001"
+                          />
+                          <Button
+                            size="sm"
+                            className="bg-[#a9e851] text-[#212124] hover:bg-[#a9e851]/90"
+                            onClick={() => saveEdit(actualIndex)}
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      ) : (
+                        <div
+                          className="flex items-center font-medium text-white cursor-pointer hover:text-[#a9e851] transition-colors"
+                          onClick={() => startEdit(actualIndex)}
                         >
-                          Save
-                        </Button>
-                      </div>
-                    ) : (
-                      <div
-                        className="flex items-center font-medium text-white cursor-pointer hover:text-[#a9e851] transition-colors"
-                        onClick={() => startEdit(actualIndex)}
-                      >
-                        {token.holdings}
-                      </div>
-                    )}
-                    <div className="flex items-center font-medium text-white ml-4">{token.value}</div>
+                          {token.holdings}
+                        </div>
+                      )}
+                    </div>
+                    <div className="hidden md:flex items-center font-medium text-white ml-4">{token.value}</div>
                     <div className="flex items-center justify-end relative">
                       <Button
                         variant="ghost"
