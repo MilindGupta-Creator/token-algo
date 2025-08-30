@@ -5,20 +5,18 @@ import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, RefreshCw, Plus, Star, Pencil, Trash, ChevronLeft, ChevronRight } from "lucide-react"
+import { 
+  fetchTopTokens, 
+  searchTokens, 
+  refreshTokenPrices, 
+  convertCoinGeckoToken, 
+  calculatePortfolioTotal,
+  updateTokenValue,
+  updateTokenWithPriceData,
+  type Token,
+} from "@/lib/coingecko"
 
-interface Token {
-  name: string
-  symbol: string
-  price: string
-  change: string
-  changePositive: boolean
-  holdings: string
-  value: string
-  sparkline: string
-  icon: string
-}
-
-const portfolioData = [
+const defaultPortfolioData: Token[] = [
   {
     name: "Bitcoin",
     symbol: "BTC",
@@ -29,6 +27,11 @@ const portfolioData = [
     value: "$6,635.80",
     sparkline: "up",
     icon: "🟠",
+    id: "bitcoin",
+    priceValue: 43250.67,
+    holdingsValue: 0.1534,
+    valueAmount: 6635.80,
+    priceChange24h: 2.30,
   },
   {
     name: "Ethereum",
@@ -40,6 +43,11 @@ const portfolioData = [
     value: "$2,162.53",
     sparkline: "down",
     icon: "🔷",
+    id: "ethereum",
+    priceValue: 2654.32,
+    holdingsValue: 0.8150,
+    valueAmount: 2162.53,
+    priceChange24h: -1.20,
   },
   {
     name: "Solana",
@@ -51,6 +59,11 @@ const portfolioData = [
     value: "$1,476.75",
     sparkline: "up",
     icon: "🟣",
+    id: "solana",
+    priceValue: 98.45,
+    holdingsValue: 15.0000,
+    valueAmount: 1476.75,
+    priceChange24h: 4.70,
   },
   {
     name: "Dogecoin",
@@ -62,6 +75,11 @@ const portfolioData = [
     value: "$2,162.53",
     sparkline: "up",
     icon: "🐕",
+    id: "dogecoin",
+    priceValue: 0.0823,
+    holdingsValue: 26250.0000,
+    valueAmount: 2162.53,
+    priceChange24h: 2.30,
   },
   {
     name: "USDC",
@@ -73,6 +91,11 @@ const portfolioData = [
     value: "$535.00",
     sparkline: "flat",
     icon: "🔵",
+    id: "usd-coin",
+    priceValue: 1.00,
+    holdingsValue: 535.0000,
+    valueAmount: 535.00,
+    priceChange24h: 0.00,
   },
   {
     name: "Stellar",
@@ -84,40 +107,93 @@ const portfolioData = [
     value: "$1,476.75",
     sparkline: "up",
     icon: "⭐",
+    id: "stellar",
+    priceValue: 0.0985,
+    holdingsValue: 15000.0000,
+    valueAmount: 1476.75,
+    priceChange24h: 4.70,
   },
 ]
 
-// Master list for the Add Token modal (can be expanded or fetched later)
-const allTokens = [
-  ...portfolioData,
-  { name: "Hyperliquid", symbol: "HYPE", price: "$12.34", change: "+1.2%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "✨" },
-  { name: "PinLink", symbol: "PIN", price: "$1.02", change: "-0.5%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "📌" },
-  { name: "Stader", symbol: "SD", price: "$0.85", change: "+0.3%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "⭐" },
-  { name: "Avalanche", symbol: "AVAX", price: "$34.22", change: "+2.1%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🏔️" },
-  { name: "Polygon", symbol: "MATIC", price: "$0.87", change: "-0.4%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "🟪" },
-  { name: "Cardano", symbol: "ADA", price: "$0.52", change: "+0.8%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🟦" },
-  { name: "Ripple", symbol: "XRP", price: "$0.62", change: "-1.2%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "💧" },
-  { name: "BNB", symbol: "BNB", price: "$398.10", change: "+0.5%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🟡" },
-  { name: "Polkadot", symbol: "DOT", price: "$6.22", change: "-0.6%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "🎯" },
-  { name: "Chainlink", symbol: "LINK", price: "$17.44", change: "+1.9%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🔗" },
-  { name: "Arbitrum", symbol: "ARB", price: "$1.24", change: "+0.2%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🌀" },
-  { name: "Aptos", symbol: "APT", price: "$9.15", change: "-0.8%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "🅰️" },
-  { name: "Optimism", symbol: "OP", price: "$2.34", change: "+0.7%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🟥" },
-  { name: "Sui", symbol: "SUI", price: "$1.12", change: "-0.3%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "💠" },
-  { name: "Injective", symbol: "INJ", price: "$27.02", change: "+3.1%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🧪" },
-  { name: "NEAR", symbol: "NEAR", price: "$5.42", change: "+0.6%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "📍" },
-  { name: "TRON", symbol: "TRX", price: "$0.12", change: "-0.2%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "🚀" },
-  { name: "Litecoin", symbol: "LTC", price: "$82.40", change: "+0.1%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "💡" },
+// Default all tokens list (will be populated with API data)
+const defaultAllTokens: Token[] = [
+  ...defaultPortfolioData,
+  { name: "Hyperliquid", symbol: "HYPE", price: "$12.34", change: "+1.2%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "✨", id: "hyperliquid", priceValue: 12.34, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 1.2 },
+  { name: "PinLink", symbol: "PIN", price: "$1.02", change: "-0.5%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "📌", id: "pinlink", priceValue: 1.02, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: -0.5 },
+  { name: "Stader", symbol: "SD", price: "$0.85", change: "+0.3%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "⭐", id: "stader", priceValue: 0.85, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 0.3 },
+  { name: "Avalanche", symbol: "AVAX", price: "$34.22", change: "+2.1%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🏔️", id: "avalanche-2", priceValue: 34.22, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 2.1 },
+  { name: "Polygon", symbol: "MATIC", price: "$0.87", change: "-0.4%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "🟪", id: "matic-network", priceValue: 0.87, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: -0.4 },
+  { name: "Cardano", symbol: "ADA", price: "$0.52", change: "+0.8%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🟦", id: "cardano", priceValue: 0.52, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 0.8 },
+  { name: "Ripple", symbol: "XRP", price: "$0.62", change: "-1.2%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "💧", id: "ripple", priceValue: 0.62, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: -1.2 },
+  { name: "BNB", symbol: "BNB", price: "$398.10", change: "+0.5%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🟡", id: "binancecoin", priceValue: 398.10, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 0.5 },
+  { name: "Polkadot", symbol: "DOT", price: "$6.22", change: "-0.6%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "🎯", id: "polkadot", priceValue: 6.22, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: -0.6 },
+  { name: "Chainlink", symbol: "LINK", price: "$17.44", change: "+1.9%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🔗", id: "chainlink", priceValue: 17.44, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 1.9 },
+  { name: "Arbitrum", symbol: "ARB", price: "$1.24", change: "+0.2%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🌀", id: "arbitrum", priceValue: 1.24, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 0.2 },
+  { name: "Aptos", symbol: "APT", price: "$9.15", change: "-0.8%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "🅰️", id: "aptos", priceValue: 9.15, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: -0.8 },
+  { name: "Optimism", symbol: "OP", price: "$2.34", change: "+0.7%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🟥", id: "optimism", priceValue: 2.34, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 0.7 },
+  { name: "Sui", symbol: "SUI", price: "$1.12", change: "-0.3%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "💠", id: "sui", priceValue: 1.12, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: -0.3 },
+  { name: "Injective", symbol: "INJ", price: "$27.02", change: "+3.1%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "🧪", id: "injective", priceValue: 27.02, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 3.1 },
+  { name: "NEAR", symbol: "NEAR", price: "$5.42", change: "+0.6%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "📍", id: "near", priceValue: 5.42, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 0.6 },
+  { name: "TRON", symbol: "TRX", price: "$0.12", change: "-0.2%", changePositive: false, holdings: "0.0000", value: "$0.00", sparkline: "down", icon: "🚀", id: "tron", priceValue: 0.12, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: -0.2 },
+  { name: "Litecoin", symbol: "LTC", price: "$82.40", change: "+0.1%", changePositive: true, holdings: "0.0000", value: "$0.00", sparkline: "up", icon: "💡", id: "litecoin", priceValue: 82.40, holdingsValue: 0.0000, valueAmount: 0.00, priceChange24h: 0.1 },
 ]
 
-const chartData = [
-  { name: "Bitcoin (BTC)", percentage: 32.5, color: "#f7931a" },
-  { name: "Ethereum (ETH)", percentage: 28.3, color: "#627eea" },
-  { name: "Solana (SOL)", percentage: 18.7, color: "#14f195" },
-  { name: "Dogecoin (DOGE)", percentage: 12.1, color: "#c2a633" },
-  { name: "USDC", percentage: 5.2, color: "#2775ca" },
-  { name: "Stellar (XLM)", percentage: 3.2, color: "#000000" },
-]
+// Chart data will be calculated dynamically based on portfolio data
+const getChartData = (data: Token[]) => {
+  const totalValue = calculatePortfolioTotal(data)
+  
+  return data
+    .map(token => {
+      const percentage = totalValue > 0 ? (token.valueAmount / totalValue) * 100 : 0
+      return {
+        name: `${token.name} (${token.symbol})`,
+        percentage: Math.round(percentage * 10) / 10,
+        color: getTokenColor(token.symbol)
+      }
+    })
+    .filter(item => item.percentage > 0)
+    .sort((a, b) => b.percentage - a.percentage)
+    .slice(0, 6)
+}
+
+// Get token color for chart
+const getTokenColor = (symbol: string): string => {
+  const colorMap: Record<string, string> = {
+    'BTC': '#f7931a',
+    'ETH': '#627eea',
+    'SOL': '#14f195',
+    'DOGE': '#c2a633',
+    'USDC': '#2775ca',
+    'XLM': '#000000',
+    'BNB': '#f3ba2f',
+    'ADA': '#0033ad',
+    'XRP': '#23292f',
+    'DOT': '#e6007a',
+    'LINK': '#2a5ada',
+    'MATIC': '#8247e5',
+    'AVAX': '#e84142',
+    'LTC': '#a6a9aa',
+    'TRX': '#ff060a',
+    'NEAR': '#000000',
+    'INJ': '#00b4ff',
+    'APT': '#0055ff',
+    'OP': '#ff0420',
+    'SUI': '#6fbcf0',
+    'ARB': '#28a0f0',
+  }
+  return colorMap[symbol] || '#71717a'
+}
+
+// Calculate portfolio 24h change
+const calculatePortfolioChange = (tokens: Token[]) => {
+  const totalValue = calculatePortfolioTotal(tokens)
+  if (totalValue === 0) return { change: 0, percentage: 0 }
+  
+  const change = tokens.reduce((sum, token) => sum + (token.priceChange24h * token.valueAmount / 100), 0)
+  const percentage = tokens.reduce((sum, token) => sum + (token.priceChange24h * token.valueAmount / totalValue), 0)
+  
+  return { change, percentage }
+}
 
 function Sparkline({ trend }: { trend: string }) {
   const isUp = trend === "up"
@@ -170,8 +246,9 @@ function Sparkline({ trend }: { trend: string }) {
   )
 }
 
-function DonutChart({ data }: { data: typeof portfolioData }) {
+function DonutChart({ data }: { data: Token[] }) {
   let cumulativePercentage = 0
+  const chartData = getChartData(data)
 
   const radius = 80
   const strokeWidth = 20
@@ -215,7 +292,7 @@ function DonutChart({ data }: { data: typeof portfolioData }) {
       </svg>
       {/* Center content */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-2xl font-bold text-white">${data.reduce((sum: number, token: Token) => sum + parseFloat(token.value.replace('$', '').replace(',', '')), 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+        <div className="text-2xl font-bold text-white">${calculatePortfolioTotal(data).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
         <div className="text-xs text-[#71717a]">Total Value</div>
       </div>
     </div>
@@ -223,7 +300,8 @@ function DonutChart({ data }: { data: typeof portfolioData }) {
 }
 
 export default function HomePage() {
-  const [data, setData] = useState<Token[]>(portfolioData)
+  const [data, setData] = useState<Token[]>(defaultPortfolioData)
+  const [allTokens, setAllTokens] = useState<Token[]>(defaultAllTokens)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editValue, setEditValue] = useState<string>("")
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null)
@@ -232,16 +310,105 @@ export default function HomePage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [lastUpdated, setLastUpdated] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [searchResults, setSearchResults] = useState<Token[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(10)
 
-  // Update timestamp every minute
+  // Load initial data from CoinGecko API
   useEffect(() => {
-    const interval = setInterval(() => {
+    const loadInitialData = async () => {
+      try {
+        setIsLoading(true)
+        
+        // Fetch top 100 tokens for the all tokens list
+        const topTokens = await fetchTopTokens(100)
+        const convertedTokens = topTokens.map(token => convertCoinGeckoToken(token))
+        setAllTokens(convertedTokens)
+        
+        // Update portfolio data with real prices
+        const portfolioIds = defaultPortfolioData.map(token => token.id)
+        const portfolioTokens = topTokens.filter(token => portfolioIds.includes(token.id))
+        
+        const updatedPortfolio = defaultPortfolioData.map(token => {
+          const apiToken = portfolioTokens.find(t => t.id === token.id)
+          if (apiToken) {
+            return updateTokenWithPriceData(token, apiToken)
+          }
+          return token
+        })
+        
+        setData(updatedPortfolio)
+        setLastUpdated(new Date())
+      } catch (error) {
+        console.error('Error loading initial data:', error)
+        // Keep using default data if API fails
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadInitialData()
+  }, [])
+
+  // Update timestamp every minute and refresh prices every 5 minutes
+  useEffect(() => {
+    const timestampInterval = setInterval(() => {
       setLastUpdated(new Date())
     }, 60000)
-    return () => clearInterval(interval)
-  }, [])
+    
+    const priceRefreshInterval = setInterval(async () => {
+      if (data.length > 0 && !isRefreshing) {
+        try {
+          const tokenIds = data.map(token => token.id)
+          const updatedTokens = await refreshTokenPrices(tokenIds)
+          
+          const updatedData = data.map(token => {
+            const apiToken = updatedTokens.find(t => t.id === token.id)
+            if (apiToken) {
+              return updateTokenWithPriceData(token, apiToken)
+            }
+            return token
+          })
+          
+          setData(updatedData)
+        } catch (error) {
+          console.error('Auto refresh failed:', error)
+        }
+      }
+    }, 300000) // Refresh every 5 minutes
+    
+    return () => {
+      clearInterval(timestampInterval)
+      clearInterval(priceRefreshInterval)
+    }
+  }, [data, isRefreshing])
+
+  // Search tokens when search query changes
+  useEffect(() => {
+    const searchTokensDebounced = async () => {
+      if (search.trim().length < 2) {
+        setSearchResults([])
+        return
+      }
+
+      try {
+        setIsSearching(true)
+        const results = await searchTokens(search.trim())
+        const convertedResults = results.map(token => convertCoinGeckoToken(token))
+        setSearchResults(convertedResults)
+      } catch (error) {
+        console.error('Error searching tokens:', error)
+        setSearchResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    }
+
+    const timeoutId = setTimeout(searchTokensDebounced, 500)
+    return () => clearTimeout(timeoutId)
+  }, [search])
 
   // Calculate pagination
   const totalPages = Math.ceil(data.length / itemsPerPage)
@@ -252,29 +419,31 @@ export default function HomePage() {
   // Refresh prices functionality
   const refreshPrices = async () => {
     setIsRefreshing(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500))
     
-    // Update prices with some random variation
-    const updatedData = data.map(token => {
-      const priceChange = (Math.random() - 0.5) * 0.1 // ±5% change
-      const currentPrice = parseFloat(token.price.replace('$', '').replace(',', ''))
-      const newPrice = currentPrice * (1 + priceChange)
-      const changePercent = priceChange * 100
+    try {
+      // Get current token IDs from portfolio
+      const tokenIds = data.map(token => token.id)
       
-      return {
-        ...token,
-        price: `$${newPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
-        changePositive: changePercent >= 0,
-        sparkline: changePercent >= 0 ? 'up' : 'down',
-        value: `$${(newPrice * parseFloat(token.holdings)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      }
-    })
-    
-    setData(updatedData)
-    setLastUpdated(new Date())
-    setIsRefreshing(false)
+      // Fetch updated prices from CoinGecko
+      const updatedTokens = await refreshTokenPrices(tokenIds)
+      
+      // Update portfolio data with new prices
+      const updatedData = data.map(token => {
+        const apiToken = updatedTokens.find(t => t.id === token.id)
+        if (apiToken) {
+          return updateTokenWithPriceData(token, apiToken)
+        }
+        return token
+      })
+      
+      setData(updatedData)
+      setLastUpdated(new Date())
+    } catch (error) {
+      console.error('Error refreshing prices:', error)
+      // Keep existing data if refresh fails
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const startEdit = (index: number) => {
@@ -285,7 +454,8 @@ export default function HomePage() {
   const saveEdit = (index: number) => {
     const next = [...data]
     const numeric = Number(editValue)
-    next[index] = { ...next[index], holdings: isNaN(numeric) ? editValue : numeric.toFixed(4) }
+    const newHoldings = isNaN(numeric) ? editValue : numeric.toFixed(4)
+    next[index] = updateTokenValue(next[index], newHoldings)
     setData(next)
     setEditingIndex(null)
   }
@@ -309,6 +479,7 @@ export default function HomePage() {
     }
     setSelected({})
     setSearch("")
+    setSearchResults([])
     setIsAddOpen(false)
   }
 
@@ -326,16 +497,46 @@ export default function HomePage() {
       </header>
 
       <div className="p-6">
-        {/* Portfolio Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <RefreshCw className="w-8 h-8 mx-auto mb-4 animate-spin text-[#a9e851]" />
+              <p className="text-[#71717a]">Loading token data...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Portfolio Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Portfolio Total */}
           <div>
             <h2 className="text-[#a1a1aa] text-sm mb-4">Portfolio Total</h2>
             <div className="text-5xl font-bold mb-2">
-              ${data.reduce((sum, token) => sum + parseFloat(token.value.replace('$', '').replace(',', '')), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${calculatePortfolioTotal(data).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-[#71717a] text-sm">
-              Last updated: {lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
+            <div className="flex items-center gap-2 mb-2">
+              {(() => {
+                const { change, percentage } = calculatePortfolioChange(data)
+                return (
+                  <Badge
+                    variant="secondary"
+                    className={`${
+                      change >= 0
+                        ? "bg-[#32ca5b]/20 text-[#32ca5b] border-[#32ca5b]/30"
+                        : "bg-[#fb7185]/20 text-[#fb7185] border-[#fb7185]/30"
+                    }`}
+                  >
+                    {change >= 0 ? '+' : ''}${change.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({percentage.toFixed(2)}%)
+                  </Badge>
+                )
+              })()}
+              <span className="text-[#71717a] text-sm">24h change</span>
+            </div>
+            <p className="text-[#71717a] text-sm flex items-center gap-2">
+              <span>Last updated: {lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}</span>
+              {isRefreshing && (
+                <RefreshCw className="w-3 h-3 animate-spin text-[#a9e851]" />
+              )}
             </p>
           </div>
 
@@ -345,7 +546,7 @@ export default function HomePage() {
             <div className="flex items-center gap-8 sm:flex-col lg:flex-row">
               <DonutChart data={data} />
               <div className="space-y-3">
-                {chartData.slice(0, 5).map((item, index) => (
+                {getChartData(data).slice(0, 5).map((item, index) => (
                   <div key={index} className="flex items-center justify-between gap-8">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
@@ -528,7 +729,9 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-        </Card>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Add Token Modal */}
@@ -545,44 +748,104 @@ export default function HomePage() {
               />
             </div>
             <div className="max-h-[360px] overflow-auto">
-              <div className="px-4 py-2 text-xs text-[#a1a1aa]">Trending</div>
-              <div className="py-1">
-                {allTokens
-                  .filter((t) => !data.some((d) => d.symbol === t.symbol) || selected[t.symbol])
-                  .filter((t) =>
-                    (t.name + t.symbol).toLowerCase().includes(search.trim().toLowerCase())
-                  )
-                  .map((t) => (
-                    <button
-                      key={t.symbol}
-                      className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#2b2b2f] ${
-                        selected[t.symbol] ? "bg-[#2a341d]" : ""
-                      }`}
-                      onClick={() => toggleSelect(t.symbol)}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm">
-                          {t.icon}
-                        </div>
-                        <div className="text-sm text-white">{t.name} ({t.symbol})</div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {t.changePositive ? (
-                          <Star className="w-4 h-4 text-[#a9e851]" fill="currentColor" />
-                        ) : (
-                          <Star className="w-4 h-4 text-[#3a3a3f]" />
-                        )}
-                        <div
-                          className={`h-4 w-4 rounded-full border ${
-                            selected[t.symbol]
-                              ? "bg-[#a9e851] border-[#a9e851]"
-                              : "border-[#3a3a3f]"
+              {isSearching ? (
+                <div className="px-4 py-8 text-center text-[#71717a]">
+                  <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />
+                  Searching tokens...
+                </div>
+              ) : search.trim().length >= 2 ? (
+                <div>
+                  <div className="px-4 py-2 text-xs text-[#a1a1aa]">Search Results</div>
+                  <div className="py-1">
+                    {searchResults
+                      .filter((t) => !data.some((d) => d.symbol === t.symbol) || selected[t.symbol])
+                      .map((t) => (
+                        <button
+                          key={t.symbol}
+                          className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#2b2b2f] ${
+                            selected[t.symbol] ? "bg-[#2a341d]" : ""
                           }`}
-                        />
+                          onClick={() => toggleSelect(t.symbol)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm">
+                              {t.icon}
+                            </div>
+                            <div className="text-sm text-white">{t.name} ({t.symbol})</div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant="secondary"
+                              className={`${
+                                t.changePositive
+                                  ? "bg-[#32ca5b]/20 text-[#32ca5b] border-[#32ca5b]/30"
+                                  : "bg-[#fb7185]/20 text-[#fb7185] border-[#fb7185]/30"
+                              }`}
+                            >
+                              {t.change}
+                            </Badge>
+                            <div
+                              className={`h-4 w-4 rounded-full border ${
+                                selected[t.symbol]
+                                  ? "bg-[#a9e851] border-[#a9e851]"
+                                  : "border-[#3a3a3f]"
+                              }`}
+                            />
+                          </div>
+                        </button>
+                      ))}
+                    {searchResults.length === 0 && (
+                      <div className="px-4 py-8 text-center text-[#71717a]">
+                        No tokens found for &quot;{search}&quot;
                       </div>
-                    </button>
-                  ))}
-              </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="px-4 py-2 text-xs text-[#a1a1aa]">Trending</div>
+                  <div className="py-1">
+                    {allTokens
+                      .filter((t) => !data.some((d) => d.symbol === t.symbol) || selected[t.symbol])
+                      .slice(0, 20)
+                      .map((t) => (
+                        <button
+                          key={t.symbol}
+                          className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#2b2b2f] ${
+                            selected[t.symbol] ? "bg-[#2a341d]" : ""
+                          }`}
+                          onClick={() => toggleSelect(t.symbol)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm">
+                              {t.icon}
+                            </div>
+                            <div className="text-sm text-white">{t.name} ({t.symbol})</div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant="secondary"
+                              className={`${
+                                t.changePositive
+                                  ? "bg-[#32ca5b]/20 text-[#32ca5b] border-[#32ca5b]/30"
+                                  : "bg-[#fb7185]/20 text-[#fb7185] border-[#fb7185]/30"
+                              }`}
+                            >
+                              {t.change}
+                            </Badge>
+                            <div
+                              className={`h-4 w-4 rounded-full border ${
+                                selected[t.symbol]
+                                  ? "bg-[#a9e851] border-[#a9e851]"
+                                  : "border-[#3a3a3f]"
+                              }`}
+                            />
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="p-4 border-t border-[#2b2b2f] flex items-center justify-end">
               <Button
